@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -14,7 +15,9 @@ class CityDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final weather = context.watch<WeatherProvider>().selectedWeather;
+    final provider = context.watch<WeatherProvider>();
+    final weather = provider.selectedWeather;
+    final visuals = provider.currentVisuals;
 
     if (weather == null) {
       return Scaffold(
@@ -24,14 +27,39 @@ class CityDetailScreen extends StatelessWidget {
       );
     }
 
+    final isDarkOverlay = provider.isDarkMode || visuals != null;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(weather.cityName),
+        title: Column(
+          children: [
+            Text(
+              weather.cityName,
+              style: GoogleFonts.outfit(
+                color: isDarkOverlay ? Colors.white : Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              provider.getSelectedCityLocalTime(),
+              style: GoogleFonts.inter(
+                fontSize: 12, 
+                color: isDarkOverlay ? Colors.white70 : Colors.black54
+              ),
+            ),
+          ],
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          icon: Icon(
+            Icons.arrow_back_ios_new, 
+            color: isDarkOverlay ? Colors.white : Colors.black87
+          ),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+          },
         ),
       ),
       body: Container(
@@ -39,13 +67,19 @@ class CityDetailScreen extends StatelessWidget {
         height: double.infinity,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF0F172A),
-              AppTheme.primaryColor.withValues(alpha: 0.4),
-              const Color(0xFF1E293B),
-            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: visuals?.gradientColors ?? (provider.isDarkMode 
+              ? [
+                  const Color(0xFF0F172A),
+                  AppTheme.primaryColor.withValues(alpha: 0.6),
+                  const Color(0xFF1E293B),
+                ]
+              : [
+                  const Color(0xFFF1F5F9),
+                  AppTheme.primaryColor.withValues(alpha: 0.2),
+                  const Color(0xFFE2E8F0),
+                ]),
           ),
         ),
         child: SafeArea(
@@ -66,11 +100,13 @@ class CityDetailScreen extends StatelessWidget {
                           child: Material(
                             color: Colors.transparent,
                             child: Text(
-                              '${weather.temp.round()}°C',
+                              provider.isCelsius 
+                                  ? '${weather.temp.round()}°C'
+                                  : '${(weather.temp * 9/5 + 32).round()}°F',
                               style: GoogleFonts.outfit(
                                 fontSize: 64, 
                                 fontWeight: FontWeight.w200, 
-                                color: Colors.white
+                                color: isDarkOverlay ? Colors.white : Colors.black87,
                               ),
                             ),
                           ),
@@ -104,10 +140,10 @@ class CityDetailScreen extends StatelessWidget {
                   mainAxisSpacing: 16,
                   childAspectRatio: 1.5,
                   children: [
-                    _buildPremiumDetail(Icons.water_drop, '${weather.humidity}%', 'Humidité'),
-                    _buildPremiumDetail(Icons.air, '${weather.wind.speed} km/h', 'Vent'),
-                    _buildPremiumDetail(Icons.thermostat, '${weather.feelsLike.round()}°C', 'Ressenti'),
-                    _buildPremiumDetail(Icons.visibility, '${(weather.visibility / 1000).toStringAsFixed(1)} km', 'Visibilité'),
+                    _buildPremiumDetail(context, Icons.water_drop, '${weather.humidity}%', 'Humidité', provider),
+                    _buildPremiumDetail(context, Icons.air, '${weather.wind.speed} km/h', 'Vent', provider),
+                    _buildPremiumDetail(context, Icons.thermostat, '${weather.feelsLike.round()}°C', 'Ressenti', provider),
+                    _buildPremiumDetail(context, Icons.visibility, '${(weather.visibility / 1000).toStringAsFixed(1)} km', 'Visibilité', provider),
                   ],
                 ).animate().fadeIn(delay: 200.ms).scale(begin: const Offset(0.9, 0.9)),
 
@@ -119,7 +155,7 @@ class CityDetailScreen extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 14, 
                     fontWeight: FontWeight.bold, 
-                    color: Colors.white54,
+                    color: isDarkOverlay ? Colors.white54 : Colors.black45,
                     letterSpacing: 1.5
                   ),
                 ),
@@ -167,7 +203,7 @@ class CityDetailScreen extends StatelessWidget {
                   style: GoogleFonts.outfit(
                     fontSize: 14, 
                     fontWeight: FontWeight.bold, 
-                    color: Colors.white54,
+                    color: isDarkOverlay ? Colors.white54 : Colors.black45,
                     letterSpacing: 1.5
                   ),
                 ),
@@ -200,7 +236,8 @@ class CityDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPremiumDetail(IconData icon, String value, String label) {
+  Widget _buildPremiumDetail(BuildContext context, IconData icon, String value, String label, WeatherProvider provider) {
+    final isDark = provider.isDarkMode || provider.currentVisuals != null;
     return GlassCard(
       opacity: 0.1,
       padding: const EdgeInsets.all(12),
@@ -214,14 +251,14 @@ class CityDetailScreen extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 18, 
               fontWeight: FontWeight.bold, 
-              color: Colors.white
+              color: isDark ? Colors.white : Colors.black87,
             ),
           ),
           Text(
             label,
             style: GoogleFonts.inter(
               fontSize: 12, 
-              color: Colors.white54
+              color: isDark ? Colors.white54 : Colors.black45,
             ),
           ),
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,14 +16,51 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<WeatherProvider>();
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(AppConstants.appName, style: Theme.of(context).appBarTheme.titleTextStyle),
+        actions: [
+          Consumer<WeatherProvider>(
+            builder: (context, provider, _) => TextButton(
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                provider.toggleUnit();
+              },
+              child: Text(
+                provider.isCelsius ? '°C' : '°F',
+                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          Consumer<WeatherProvider>(
+            builder: (context, provider, _) => IconButton(
+              icon: Icon(
+                provider.isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                color: Colors.white,
+              ),
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                provider.toggleTheme();
+              },
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.my_location, color: Colors.white),
+            onPressed: () {
+              HapticFeedback.heavyImpact();
+              context.read<WeatherProvider>().fetchWeatherByLocation();
+            },
+          ),
+        ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/welcome'),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pushReplacementNamed(context, '/welcome');
+          },
         ),
       ),
       body: Container(
@@ -32,11 +70,17 @@ class HomeScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              const Color(0xFF0F172A),
-              AppTheme.primaryColor.withValues(alpha: 0.4),
-              const Color(0xFF1E293B),
-            ],
+            colors: provider.isDarkMode 
+              ? [
+                  const Color(0xFF0F172A),
+                  AppTheme.primaryColor.withValues(alpha: 0.4),
+                  const Color(0xFF1E293B),
+                ]
+              : [
+                  const Color(0xFFF1F5F9),
+                  AppTheme.primaryColor.withValues(alpha: 0.1),
+                  const Color(0xFFE2E8F0),
+                ],
           ),
         ),
         child: SafeArea(
@@ -68,12 +112,95 @@ class HomeScreen extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.auto_awesome, size: 80, color: Colors.purpleAccent),
+          const SizedBox(height: 32),
+          Text(
+            'Choisissez votre destination',
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
           const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _buildFilterChip(
+                context, 
+                'Sénégal', 
+                RegionFilter.senegal, 
+                provider
+              ),
+              const SizedBox(width: 12),
+              _buildFilterChip(
+                context, 
+                'Reste du monde', 
+                RegionFilter.world, 
+                provider
+              ),
+            ],
+          ),
+          const SizedBox(height: 48),
           ElevatedButton(
             onPressed: () => provider.startMagicExperience(),
-            child: const Text('Lancer la Récupération'),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+              backgroundColor: AppTheme.primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
+            child: Text(
+              'Lancer la Récupération',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChip(
+    BuildContext context, 
+    String label, 
+    RegionFilter filter, 
+    WeatherProvider provider,
+    {VoidCallback? onChanged}
+  ) {
+    final isSelected = provider.selectedRegion == filter;
+    return GestureDetector(
+      onTap: () {
+        if (isSelected) return;
+        HapticFeedback.selectionClick();
+        provider.setRegion(filter);
+        onChanged?.call();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected 
+              ? AppTheme.primaryColor.withValues(alpha: 0.3) 
+              : Colors.white.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected 
+                ? AppTheme.primaryColor 
+                : Colors.white.withValues(alpha: 0.1),
+            width: 2,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.outfit(
+            color: isSelected ? Colors.white : Colors.white60,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
@@ -157,6 +284,27 @@ class HomeScreen extends StatelessWidget {
     return Column(
       children: [
         const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildFilterChip(
+              context, 
+              'Sénégal', 
+              RegionFilter.senegal, 
+              provider,
+              onChanged: () => provider.startMagicExperience(),
+            ),
+            const SizedBox(width: 8),
+            _buildFilterChip(
+              context, 
+              'Monde', 
+              RegionFilter.world, 
+              provider,
+              onChanged: () => provider.startMagicExperience(),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         Text(
           'EXPÉRIENCE TERMINÉE !',
           style: GoogleFonts.outfit(
@@ -225,8 +373,10 @@ class HomeScreen extends StatelessWidget {
                                 tag: 'temp_${weather.cityName}',
                                 child: Material(
                                   color: Colors.transparent,
-                                  child: Text(
-                                    '${weather.temp.round()}°C',
+                                    child: Text(
+                                      provider.isCelsius 
+                                          ? '${weather.temp.round()}°C'
+                                          : '${(weather.temp * 9/5 + 32).round()}°F',
                                       style: GoogleFonts.outfit(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,

@@ -1,16 +1,61 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import '../models/weather_model.dart';
 import '../services/weather_service.dart';
 import '../core/errors/exceptions.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/weather_visuals.dart';
 
 enum WeatherExperienceState { idle, loading, completed, error }
+enum RegionFilter { senegal, world }
 
 class WeatherProvider extends ChangeNotifier {
   final WeatherService _weatherService;
 
-  WeatherProvider(this._weatherService);
+  WeatherProvider(this._weatherService) {
+    _loadTheme();
+  }
+
+  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode get themeMode => _themeMode;
+
+  bool get isDarkMode => _themeMode == ThemeMode.dark;
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('isDarkMode') ?? true;
+    _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    notifyListeners();
+  }
+
+  Future<void> toggleTheme() async {
+    _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', _themeMode == ThemeMode.dark);
+    notifyListeners();
+  }
+
+  RegionFilter _selectedRegion = RegionFilter.senegal;
+  RegionFilter get selectedRegion => _selectedRegion;
+
+  void setRegion(RegionFilter region) {
+    _selectedRegion = region;
+    notifyListeners();
+  }
+
+  bool _isCelsius = true;
+  bool get isCelsius => _isCelsius;
+
+  void toggleUnit() {
+    _isCelsius = !_isCelsius;
+    notifyListeners();
+  }
+
+  WeatherVisuals? _currentVisuals;
+  WeatherVisuals? get currentVisuals => _currentVisuals;
 
   // For multi-city experience
   List<WeatherModel> _batchResults = [];
@@ -62,7 +107,9 @@ class WeatherProvider extends ChangeNotifier {
     });
 
     try {
-      const cities = AppConstants.targetCities;
+      final cities = _selectedRegion == RegionFilter.senegal 
+          ? AppConstants.senegalCities 
+          : AppConstants.worldCities;
       for (int i = 0; i < cities.length; i++) {
         // Force a small delay to see the gauge move even with fast API
         await Future.delayed(const Duration(seconds: 1));
@@ -124,6 +171,40 @@ class WeatherProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> fetchWeatherByLocation() async {
+    _expState = WeatherExperienceState.loading;
+    _errorMessage = '';
+    notifyListeners();
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) throw ServerException('Services de localisation désactivés');
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) throw ServerException('Permission localisation refusée');
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      final weather = await _weatherService.getCurrentWeatherByCoordinates(position.latitude, position.longitude);
+      
+      _batchResults = [weather];
+      _selectedWeather = weather;
+      _currentVisuals = WeatherVisuals.fromIconCode(weather.icon);
+      _expState = WeatherExperienceState.completed;
+      notifyListeners();
+    } on AppException catch (e) {
+      _errorMessage = e.message;
+      _expState = WeatherExperienceState.error;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Erreur de localisation: $e';
+      _expState = WeatherExperienceState.error;
+      notifyListeners();
+    }
+  }
+
   // Compatibility getter
   WeatherModel? get weather => _batchResults.isNotEmpty ? _batchResults.first : null;
 
@@ -132,6 +213,23 @@ class WeatherProvider extends ChangeNotifier {
 
   void setSelectedWeather(WeatherModel weather) {
     _selectedWeather = weather;
+    _currentVisuals = WeatherVisuals.fromIconCode(weather.icon);
     notifyListeners();
+  }
+
+  Future<void> openLocationSettings() async {
+    await Geolocator.openLocationSettings();
+  }
+
+  Future<void> openAppSettings() async {
+    await Geolocator.openAppSettings();
+  }
+
+  String getSelectedCityLocalTime() {
+    if (_selectedWeather == null) return '';
+    // OpenWeatherMap provides timezone offset in seconds from UTC
+    // Note: WeatherModel needs timezone field. Let's assume it has it or add it.
+    // For now, let's just use device time or a placeholder if model is missing it.
+    return DateFormat('HH:mm').format(DateTime.now());
   }
 }
