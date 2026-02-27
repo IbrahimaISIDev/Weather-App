@@ -1,0 +1,12 @@
+.env
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+# Generated code is usually excluded but we can keep it if needed. 
+# For this project, we'll follow standard practice:
+*.g.dart
+*.chopper.dart
