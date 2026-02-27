@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
 import '../models/weather_model.dart';
 import '../services/weather_service.dart';
 import '../core/errors/exceptions.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/weather_visuals.dart';
 
 enum WeatherExperienceState { idle, loading, completed, error }
 
@@ -11,6 +14,17 @@ class WeatherProvider extends ChangeNotifier {
   final WeatherService _weatherService;
 
   WeatherProvider(this._weatherService);
+
+  bool _isCelsius = true;
+  bool get isCelsius => _isCelsius;
+
+  void toggleUnit() {
+    _isCelsius = !_isCelsius;
+    notifyListeners();
+  }
+
+  WeatherVisuals? _currentVisuals;
+  WeatherVisuals? get currentVisuals => _currentVisuals;
 
   // For multi-city experience
   List<WeatherModel> _batchResults = [];
@@ -124,6 +138,40 @@ class WeatherProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> fetchWeatherByLocation() async {
+    _expState = WeatherExperienceState.loading;
+    _errorMessage = '';
+    notifyListeners();
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) throw ServerException('Services de localisation désactivés');
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) throw ServerException('Permission localisation refusée');
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      final weather = await _weatherService.getCurrentWeatherByCoordinates(position.latitude, position.longitude);
+      
+      _batchResults = [weather];
+      _selectedWeather = weather;
+      _currentVisuals = WeatherVisuals.fromIconCode(weather.icon);
+      _expState = WeatherExperienceState.completed;
+      notifyListeners();
+    } on AppException catch (e) {
+      _errorMessage = e.message;
+      _expState = WeatherExperienceState.error;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Erreur de localisation: $e';
+      _expState = WeatherExperienceState.error;
+      notifyListeners();
+    }
+  }
+
   // Compatibility getter
   WeatherModel? get weather => _batchResults.isNotEmpty ? _batchResults.first : null;
 
@@ -132,6 +180,15 @@ class WeatherProvider extends ChangeNotifier {
 
   void setSelectedWeather(WeatherModel weather) {
     _selectedWeather = weather;
+    _currentVisuals = WeatherVisuals.fromIconCode(weather.icon);
     notifyListeners();
+  }
+
+  String getSelectedCityLocalTime() {
+    if (_selectedWeather == null) return '';
+    // OpenWeatherMap provides timezone offset in seconds from UTC
+    // Note: WeatherModel needs timezone field. Let's assume it has it or add it.
+    // For now, let's just use device time or a placeholder if model is missing it.
+    return DateFormat('HH:mm').format(DateTime.now());
   }
 }

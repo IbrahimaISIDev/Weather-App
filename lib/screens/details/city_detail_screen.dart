@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -14,7 +15,9 @@ class CityDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final weather = context.watch<WeatherProvider>().selectedWeather;
+    final provider = context.watch<WeatherProvider>();
+    final weather = provider.selectedWeather;
+    final visuals = provider.currentVisuals;
 
     if (weather == null) {
       return Scaffold(
@@ -28,10 +31,21 @@ class CityDetailScreen extends StatelessWidget {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text(weather.cityName),
+        title: Column(
+          children: [
+            Text(weather.cityName),
+            Text(
+              provider.getSelectedCityLocalTime(),
+              style: GoogleFonts.inter(fontSize: 12, color: Colors.white70),
+            ),
+          ],
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pop(context);
+          },
         ),
       ),
       body: Container(
@@ -41,7 +55,7 @@ class CityDetailScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
+            colors: visuals?.gradientColors ?? [
               const Color(0xFF0F172A),
               AppTheme.primaryColor.withValues(alpha: 0.4),
               const Color(0xFF1E293B),
@@ -66,7 +80,9 @@ class CityDetailScreen extends StatelessWidget {
                           child: Material(
                             color: Colors.transparent,
                             child: Text(
-                              '${weather.temp.round()}°C',
+                              provider.isCelsius 
+                                  ? '${weather.temp.round()}°C'
+                                  : '${(weather.temp * 9/5 + 32).round()}°F',
                               style: GoogleFonts.outfit(
                                 fontSize: 64, 
                                 fontWeight: FontWeight.w200, 

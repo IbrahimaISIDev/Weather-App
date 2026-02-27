@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,9 +21,33 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: Text(AppConstants.appName, style: Theme.of(context).appBarTheme.titleTextStyle),
+        actions: [
+          Consumer<WeatherProvider>(
+            builder: (context, provider, _) => TextButton(
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                provider.toggleUnit();
+              },
+              child: Text(
+                provider.isCelsius ? '°C' : '°F',
+                style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.my_location, color: Colors.white),
+            onPressed: () {
+              HapticFeedback.heavyImpact();
+              context.read<WeatherProvider>().fetchWeatherByLocation();
+            },
+          ),
+        ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pushReplacementNamed(context, '/welcome'),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            Navigator.pushReplacementNamed(context, '/welcome');
+          },
         ),
       ),
       body: Container(
@@ -225,8 +250,10 @@ class HomeScreen extends StatelessWidget {
                                 tag: 'temp_${weather.cityName}',
                                 child: Material(
                                   color: Colors.transparent,
-                                  child: Text(
-                                    '${weather.temp.round()}°C',
+                                    child: Text(
+                                      provider.isCelsius 
+                                          ? '${weather.temp.round()}°C'
+                                          : '${(weather.temp * 9/5 + 32).round()}°F',
                                       style: GoogleFonts.outfit(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
