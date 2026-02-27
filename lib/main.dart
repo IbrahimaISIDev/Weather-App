@@ -42,17 +42,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Météo Magique',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      initialRoute: '/welcome',
-      routes: {
-        '/welcome': (context) => const WelcomeScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/detail': (context) => const CityDetailScreen(),
+    return Consumer<WeatherProvider>(
+      builder: (context, provider, _) {
+        return MaterialApp(
+          title: 'Météo Magique',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: provider.themeMode,
+          initialRoute: '/welcome',
+          routes: {
+            '/welcome': (context) => const WelcomeScreen(),
+            '/home': (context) => const HomeScreen(),
+            '/detail': (context) => const CityDetailScreen(),
+          },
+        );
       },
     );
   }
