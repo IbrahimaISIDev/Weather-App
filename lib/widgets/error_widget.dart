@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/weather_provider.dart';
 
 class ErrorDisplayWidget extends StatelessWidget {
   final String message;
@@ -12,6 +14,9 @@ class ErrorDisplayWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    bool isLocationDisabled = message == 'Services de localisation désactivés';
+    bool isPermissionDenied = message == 'Permission localisation refusée';
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -23,13 +28,36 @@ class ErrorDisplayWidget extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(fontSize: 16, color: Colors.white),
             ),
             const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Réessayer'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Réessayer'),
+                ),
+                if (isLocationDisabled || isPermissionDenied) ...[
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      if (isLocationDisabled) {
+                        context.read<WeatherProvider>().openLocationSettings();
+                      } else {
+                        context.read<WeatherProvider>().openAppSettings();
+                      }
+                    },
+                    icon: const Icon(Icons.settings),
+                    label: Text(isLocationDisabled ? 'Activer GPS' : 'Paramètres'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white.withValues(alpha: 0.1),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ],
         ),
