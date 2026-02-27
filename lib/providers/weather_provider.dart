@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import '../models/weather_model.dart';
@@ -9,11 +10,41 @@ import '../core/constants/app_constants.dart';
 import '../core/utils/weather_visuals.dart';
 
 enum WeatherExperienceState { idle, loading, completed, error }
+enum RegionFilter { senegal, world }
 
 class WeatherProvider extends ChangeNotifier {
   final WeatherService _weatherService;
 
-  WeatherProvider(this._weatherService);
+  WeatherProvider(this._weatherService) {
+    _loadTheme();
+  }
+
+  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode get themeMode => _themeMode;
+
+  bool get isDarkMode => _themeMode == ThemeMode.dark;
+
+  Future<void> _loadTheme() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isDark = prefs.getBool('isDarkMode') ?? true;
+    _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    notifyListeners();
+  }
+
+  Future<void> toggleTheme() async {
+    _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isDarkMode', _themeMode == ThemeMode.dark);
+    notifyListeners();
+  }
+
+  RegionFilter _selectedRegion = RegionFilter.senegal;
+  RegionFilter get selectedRegion => _selectedRegion;
+
+  void setRegion(RegionFilter region) {
+    _selectedRegion = region;
+    notifyListeners();
+  }
 
   bool _isCelsius = true;
   bool get isCelsius => _isCelsius;
@@ -76,7 +107,9 @@ class WeatherProvider extends ChangeNotifier {
     });
 
     try {
-      const cities = AppConstants.targetCities;
+      final cities = _selectedRegion == RegionFilter.senegal 
+          ? AppConstants.senegalCities 
+          : AppConstants.worldCities;
       for (int i = 0; i < cities.length; i++) {
         // Force a small delay to see the gauge move even with fast API
         await Future.delayed(const Duration(seconds: 1));
@@ -182,6 +215,14 @@ class WeatherProvider extends ChangeNotifier {
     _selectedWeather = weather;
     _currentVisuals = WeatherVisuals.fromIconCode(weather.icon);
     notifyListeners();
+  }
+
+  Future<void> openLocationSettings() async {
+    await Geolocator.openLocationSettings();
+  }
+
+  Future<void> openAppSettings() async {
+    await Geolocator.openAppSettings();
   }
 
   String getSelectedCityLocalTime() {
