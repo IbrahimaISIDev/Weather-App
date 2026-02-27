@@ -85,9 +85,9 @@ lib/
 
 ## 👥 Équipe de Développement
 
-- **Nom 1** - [GitHub Profile](https://github.com/votre_profil)
-- **Nom 2** - [GitHub Profile](https://github.com/votre_profil)
-- **Nom 3** - [GitHub Profile](https://github.com/votre_profil)
+- **Pape Mbaye GAYE** - [GitHub Profile](https://github.com/votre_profil)
+- **Ibrahima Sory DIALLO** - [GitHub Profile](https://github.com/IbrahimaISIDev)
+- **Ibrahima SARR** - [GitHub Profile](https://github.com/votre_profil)
 
 ---
 
