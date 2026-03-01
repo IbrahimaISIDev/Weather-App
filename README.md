@@ -85,9 +85,9 @@ lib/
 
 ## 👥 Équipe de Développement
 
-- **Pape Mbaye GAYE** - [GitHub Profile](https://github.com/votre_profil)
-- **Ibrahima Sory DIALLO** - [GitHub Profile](https://github.com/IbrahimaISIDev)
-- **Ibrahima SARR** - [GitHub Profile](https://github.com/votre_profil)
+- **Pape Mbaye GAYE**
+- **Ibrahima Sory DIALLO** 
+- **Ibrahima SARR** 
 
 ---
 
